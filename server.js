@@ -1,115 +1,116 @@
 var koa = require('koa')
-  , app = koa()
+  , app = koa();
 
 // sessions
-var session = require('koa-sess')
-app.keys = ['your-session-secret']
-app.use(session())
+var session = require('koa-generic-session');
+app.keys = ['your-session-secret'];
+app.use(session());
 
 // body parser
-var bodyParser = require('koa-bodyparser')
-app.use(bodyParser())
+var bodyParser = require('koa-bodyparser');
+app.use(bodyParser());
 
 // authentication
-require('./auth')
-var passport = require('koa-passport')
-app.use(passport.initialize())
-app.use(passport.session())
+var passport = require('./auth');
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // append view renderer
-var views = require('koa-render')
+var views = require('koa-render');
 app.use(views('./views', {
   map: { html: 'handlebars' },
   cache: false
-}))
+}));
 
-// public routes
-var Router = require('koa-router')
-
-var public = new Router()
-
-public.get('/', function*() {
-  this.body = yield this.render('login')
-})
-
-public.post('/custom', function*(next) {
-  var ctx = this
-  yield passport.authenticate('local', function*(err, user, info) {
-    if (err) throw err
-    if (user === false) {
-      ctx.status = 401
-      ctx.body = { success: false }
-    } else {
-      yield ctx.login(user)
-      ctx.body = { success: true }
-    }
-  }).call(this, next)
-})
-
-// POST /login
-public.post('/login',
-  passport.authenticate('local', {
-    successRedirect: '/app',
-    failureRedirect: '/'
-  })
-)
-
-public.get('/logout', function*(next) {
-  this.logout()
-  this.redirect('/')
-})
-
-public.get('/auth/facebook',
-  passport.authenticate('facebook')
-)
-
-public.get('/auth/facebook/callback',
-  passport.authenticate('facebook', {
-    successRedirect: '/app',
-    failureRedirect: '/'
-  })
-)
-
-public.get('/auth/twitter',
-  passport.authenticate('twitter')
-)
-
-public.get('/auth/twitter/callback',
-  passport.authenticate('twitter', {
-    successRedirect: '/app',
-    failureRedirect: '/'
-  })
-)
-
-public.get('/auth/google',
-  passport.authenticate('google')
-)
-
-public.get('/auth/google/callback',
-  passport.authenticate('google', {
-    successRedirect: '/app',
-    failureRedirect: '/'
-  })
-)
-
-app.use(public.middleware())
 
 // Require authentication for now
-app.use(function*(next) {
-  if (this.isAuthenticated()) {
-    yield next
-  } else {
-    this.redirect('/')
-  }
-})
+var authed = function*(next) {
+    if (this.isAuthenticated()) {
+        yield next
+    } else {
+        this.redirect('/')
+    }
+};
 
-var secured = new Router()
+// public routes
+var Router = require('koa-router');
 
-secured.get('/app', function*() {
-  this.body = yield this.render('app')
-})
+var router = new Router();
 
-app.use(secured.middleware())
+router
+
+    .get('/', function*() {
+      this.body = yield this.render('login')
+    })
+
+    .post('/custom', function*(next) {
+      var ctx = this;
+      yield passport.authenticate('local', function*(err, user, info) {
+        if (err) throw err;
+        if (user === false) {
+          ctx.status = 401;
+          ctx.body = { success: false }
+        } else {
+          yield ctx.login(user);
+          ctx.body = { success: true }
+        }
+      }).call(this, next)
+    })
+
+    // POST /login
+    .post('/login',
+      passport.authenticate('local', {
+        successRedirect: '/app',
+        failureRedirect: '/'
+      })
+    )
+
+    .get('/logout', function*(next) {
+      this.logout();
+      this.redirect('/');
+      yield next;
+    })
+
+    .get('/auth/facebook',
+      passport.authenticate('facebook')
+    )
+
+    .get('/auth/facebook/callback',
+      passport.authenticate('facebook', {
+        successRedirect: '/app',
+        failureRedirect: '/'
+      })
+    )
+
+    .get('/auth/twitter',
+      passport.authenticate('twitter')
+    )
+
+    .get('/auth/twitter/callback',
+      passport.authenticate('twitter', {
+        successRedirect: '/app',
+        failureRedirect: '/'
+      })
+    )
+
+    .get('/auth/google',
+      passport.authenticate('google')
+    )
+
+    .get('/auth/google/callback',
+      passport.authenticate('google', {
+        successRedirect: '/app',
+        failureRedirect: '/'
+      })
+    )
+
+    // Seccured page(s)
+    .get('/app', authed, function*() {
+        this.body = yield this.render('app')
+    });
+
+app.use(router.middleware());
 
 // start server
-app.listen(process.env.PORT || 3000)
+app.listen(process.env.PORT || 3000);

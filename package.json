@@ -1,7 +1,7 @@
 {
   "name": "koa-passport-example",
-  "author": "Markus Ast <npm.m@rkusa.st",
-  "version": "0.1.0",
+  "author": "Markus Ast <npm.m@rkusa.st>",
+  "version": "0.1.1",
   "private": true,
   "keywords": [
     "koa",
@@ -23,7 +23,7 @@
     "passport-facebook": "^1.0.3",
     "passport-twitter": "^1.0.2",
     "passport-google": "^0.3.0",
-    "koa-sess": "^0.4.0",
+    "koa-generic-session": "^1.0.0",
     "koa-bodyparser": "^1.0.1"
   },
   "repository": {
