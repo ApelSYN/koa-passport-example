@@ -20,6 +20,33 @@ passport.use(new LocalStrategy(function(username, password, done) {
   }
 }));
 
+var RememberMeStrategy = require('koa-passport-remember-me').Strategy;
+var rememberMe = require('./rememberMe');
+// Remember Me cookie strategy
+//   This strategy consumes a remember me token, supplying the user the
+//   token was originally issued to.  The token is single-use, so a new
+//   token is then issued to replace it.
+passport.use(new RememberMeStrategy(
+    {
+        cookie: {signed: true}
+    },
+    function(token, done) {
+        rememberMe.consumeRememberMeToken(token, function(err, uid) {
+            if (err) { return done(err); }
+            if (!uid) { return done(null, false); }
+
+            // retrieve user ...
+            if (uid === 1) {
+                done(null, user)
+            } else {
+                done(null, false)
+            }
+        });
+    },
+    rememberMe.issueToken
+));
+
+
 var FacebookStrategy = require('passport-facebook').Strategy;
 passport.use(new FacebookStrategy({
     clientID: 'your-client-id',

@@ -6,15 +6,17 @@ var session = require('koa-generic-session');
 app.keys = ['your-session-secret'];
 app.use(session());
 
+// authentication
+var passport = require('./auth');
+
 // body parser
 var bodyParser = require('koa-bodyparser');
 app.use(bodyParser());
 
-// authentication
-var passport = require('./auth');
 
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(passport.authenticate('remember-me'));
 
 // append view renderer
 var views = require('koa-render');
@@ -33,7 +35,10 @@ var authed = function*(next) {
     }
 };
 
-// public routes
+var rememberMe = require('./rememberMe');
+
+
+// routes
 var Router = require('koa-router');
 
 var router = new Router();
@@ -61,9 +66,24 @@ router
     // POST /login
     .post('/login',
       passport.authenticate('local', {
-        successRedirect: '/app',
         failureRedirect: '/'
-      })
+      }),
+      function*(next) {
+          var ctx = this;
+          if (this.request.body.remember_me) {
+              rememberMe.issueToken(this.passport.user,
+                  function(err, token) {
+                      if (err) { return next(err); }
+                      ctx.cookies.set("remember_me", token, {signed: true});
+                  }
+              );
+          }
+          yield next;
+      },
+      function*(next) {
+          this.redirect('/app');
+          yield next;
+      }
     )
 
     .get('/logout', function*(next) {
