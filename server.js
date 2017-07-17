@@ -1,25 +1,29 @@
-var koa = require('koa')
-  , app = koa();
+const Koa = require('koa'),
+      app = new Koa(),
+      views = require('koa-views'),
+      bodyParser = require('koa-bodyparser'),
+      rememberMe = require('./rememberMe'),
+      Router = require('koa-router');
+
+// trust proxy
+app.proxy = true;
 
 // sessions
-var session = require('koa-generic-session');
+const session = require('koa-session');
 app.keys = ['your-session-secret'];
-app.use(session());
+app.use(session({}, app));
+
+// body parser
+app.use(bodyParser());
 
 // authentication
 var passport = require('./auth');
-
-// body parser
-var bodyParser = require('koa-bodyparser');
-app.use(bodyParser());
-
 
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(passport.authenticate('remember-me'));
 
 // append view renderer
-var views = require('koa-render');
 app.use(views('./views', {
   map: { html: 'handlebars' },
   cache: false
@@ -27,40 +31,33 @@ app.use(views('./views', {
 
 
 // Require authentication for now
-var authed = function*(next) {
-    if (this.isAuthenticated()) {
-        yield next
+var authed = (ctx, next) => {
+    if (ctx.isAuthenticated()) {
+        return next()
     } else {
-        this.redirect('/')
+        ctx.redirect('/');
     }
 };
 
-var rememberMe = require('./rememberMe');
-
-
 // routes
-var Router = require('koa-router');
-
 var router = new Router();
 
 router
 
-    .get('/', function*() {
-      this.body = yield this.render('login')
+    .get('/', async (ctx, next) => {
+      await ctx.render('login')
     })
 
-    .post('/custom', function*(next) {
-      var ctx = this;
-      yield passport.authenticate('local', function*(err, user, info) {
-        if (err) throw err;
-        if (user === false) {
-          ctx.status = 401;
-          ctx.body = { success: false }
-        } else {
-          yield ctx.login(user);
-          ctx.body = { success: true }
-        }
-      }).call(this, next)
+    .post('/custom', function(ctx) {
+        return passport.authenticate('local', function(err, user, info, status) {
+            if (user === false) {
+                ctx.body = { success: false }
+                ctx.throw(401)
+            } else {
+                ctx.body = { success: true }
+                return ctx.login(user)
+            }
+        })(ctx)
     })
 
     // POST /login
@@ -68,28 +65,25 @@ router
       passport.authenticate('local', {
         failureRedirect: '/'
       }),
-      function*(next) {
-          var ctx = this;
-          if (this.request.body.remember_me) {
-              rememberMe.issueToken(this.passport.user,
+      async (ctx, next) => {
+          if (ctx.request.body.remember_me) {
+              rememberMe.issueToken(ctx.session.passport.user,
                   function(err, token) {
                       if (err) { return next(err); }
-                      ctx.cookies.set("remember_me", token, {signed: true});
+                      ctx.cookies.set("remember_me", token, {signed: true, maxAge: 604800000}); // remember for 1 week
                   }
               );
           }
-          yield next;
+          await next();
       },
-      function*(next) {
-          this.redirect('/app');
-          yield next;
+      (ctx) => {
+          ctx.redirect('/app');
       }
     )
 
-    .get('/logout', function*(next) {
-      this.logout();
-      this.redirect('/');
-      yield next;
+    .get('/logout', (ctx) => {
+      ctx.logout();
+      ctx.redirect('/');
     })
 
     .get('/auth/facebook',
@@ -126,8 +120,9 @@ router
     )
 
     // Seccured page(s)
-    .get('/app', authed, function*() {
-        this.body = yield this.render('app')
+    .get('/app', authed, async (ctx, next) => {
+        await ctx.render('app');
+        await next();
     });
 
 app.use(router.middleware());

@@ -19,9 +19,9 @@
         },
 
 
-        issueToken: function issueToken(user, done) {
+        issueToken: function issueToken(uid, done) {
             var token = rememberMe.randomString(64);
-            rememberMe.saveRememberMeToken(token, user.id, function(err) {
+            rememberMe.saveRememberMeToken(token, uid, function(err) {
                 if (err) { return done(err); }
                 return done(null, token);
             });
@@ -60,8 +60,3 @@
 
     module.exports = rememberMe
 }());
-
-
-
-
-
