@@ -74,7 +74,7 @@ router
               rememberMe.issueToken(this.passport.user,
                   function(err, token) {
                       if (err) { return next(err); }
-                      ctx.cookies.set("remember_me", token, {signed: true});
+                      ctx.cookies.set("remember_me", token, {signed: true, maxAge: 604800000}); // remember for 1 week
                   }
               );
           }
