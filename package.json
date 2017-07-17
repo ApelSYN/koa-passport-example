@@ -1,7 +1,7 @@
 {
   "name": "koa-passport-example",
-  "author": "Markus Ast <npm.m@rkusa.st>",
-  "version": "0.1.1",
+  "author": "Oleg Cherniy <oleg.cherniy@gmail.com>",
+  "version": "2.0.0",
   "private": true,
   "keywords": [
     "koa",
